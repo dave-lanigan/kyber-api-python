@@ -16,16 +16,19 @@
  
  ### API Endpoints:
  
-/buy_rate
-/change24h
-/currencies
-/gasLimitConfig
-/market
-/quote_amount
-/gas_limit
-/sell_rate
-/trade_data
-/transfer_data
-/users/:user_address/currencies
-/users/:user_address/currencies/:currency_id/enable_data
+* /buy_rate
+* /change24h
+* /currencies
+* /gasLimitConfig
+* /market
+* /quote_amount
+* /gas_limit
+* /sell_rate
+* /trade_data
+* /transfer_data
+* /users/:user_address/currencies
+* /users/:user_address/currencies/:currency_id/enable_data
+
+#### Notes:
+Please read the Kyber Network Developer docs for more information about the calls.
  
