@@ -117,30 +117,22 @@ class Klient:
         params={"id":self.get_id(symbol=symbol),"qty":qty,"only_official_reserve":only_official_reserve}
         return self._request_api_get(self.BUY_RATE,params=params).json()
 
-    def currencies(self,**kwargs):
-        """Returns a list of all possible tokens available for trade.
-
-        Parameters: only_official_reserve, include_delisted, page
-
-        Returns:
-            {json dict}:
-
-            Example:
-
-        """
-        return self._request_api_get( endpoint=self.CURRENCIES, params=kwargs["params"]).json()["data"]
-
-    def change_24hr(self,only_official_reserve=True):
+    def change_24hr(self,pair="",only_official_reserve=True):
         """Returns token to ETH and USD rates and percentage changes against the past day
             Arguments:
-                Returns {boolean}: If no value is specified, it will default to true. If true, the API will only return tokens from the permissioned reserves. 
+                pair {string}: Pair of currencies. Example: "ETH_MANA"
+                only_official_reserve {boolean}: If no value is specified, it will default to true. If true, the API will only return tokens from the permissioned reserves. 
                 If false, the API will return both permissioned reserve tokens and also tokens that have been deployed permissionlessly.
         
             Returns:
                 json response {dict}
         """
         params={"only_official_reserve":only_official_reserve}
-        return self._request_api_get(self.CHANGE_24H,params).json()["data"]
+        data=self._request_api_get(self.CHANGE_24H,params).json()
+        if pair =="":
+            return data 
+        elif pair !="":
+            return data[pair]
 
     def currencies(self,**kwargs):
         """Returns a list of all possible tokens available for trade.
@@ -156,19 +148,9 @@ class Klient:
 
         return self._request_api_get( endpoint=self.CURRENCIES, params=params).json()["data"]
 
-    def change_24hr(self,only_official_reserve=False):
-        """ Returns token to ETH and USD rates and percentage changes against the past day"""
-        params={"only_official_reserve":only_official_reserve}
-        return self._request_api_get(self.CHANGE_24H,params=params).json()["data"]
-
-
     def market(self,**kwargs):
         """General market json resonse. Its generally better to use the market class."""
-
-        params={}
-        if params in kwargs:
-            params=kwargs["params"]
-        return  self._request_api_get(endpoint=self.MARKET,params=params)
+        return  self._request_api_get(endpoint=self.MARKET)
 
     def qoute_amount(self,base_wallet="",qoute_wallet="",qty=0.0,side="BUY"):
         """Returns the amount of quote token needed to buy / received when selling qty amount of base token. 
@@ -316,9 +298,6 @@ class Market(Klient):
 if __name__ == "__main__":
 
     k=Klient()
-    print(k.baseurl)
-    k.ping()
+    print( k.change_24hr(pair="ETH_MANA") )
 
-    m=Market()
-    print( m.per_token("jim") )
-    
+
