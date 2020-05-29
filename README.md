@@ -1,5 +1,5 @@
  # kyber-api-python
- An unoffical Python wrapper for the [Kyber Network RESTful API]. (https://developer.kyber.network/docs/API_ABI-RESTfulAPI/)
+ An unoffical Python wrapper for the [Kyber Network RESTful API](https://developer.kyber.network/docs/API_ABI-RESTfulAPI/).
  
  ### Installation:
  ```
