@@ -1,11 +1,17 @@
 #AMDG
 import requests, os
+import pandas
 
 class Klient:
     """
+    Unofficial python wrapper for Kyber Network API.
+
     Kyber Network Developer Docs: https://developer.kyber.network/docs/
-    """
+
+    NOTE: Much of the doc strings were taken directly from: https://developer.kyber.network/docs/API_ABI-RESTfulAPI/
+    However, for more info follow the link, especially for response information.
     
+    """
     
     #Endpoints:
     BUY_RATE="buy_rate"
@@ -13,11 +19,11 @@ class Klient:
     CURRENCIES="currencies"
     GAS_LIM_CONF="gasLimitConfig"
     MARKET="market"
-    #/quote_amount
-    #/gas_limit
+    QUOTE_AMOUNT="quote_amount"
+    GAS_LIMIT="gas_limit"
     SELL_RATE="sell_rate"
-    #/trade_data
-    #/transfer_data
+    TRADE_DATA="trade_data"
+    TRANSFER_DATA="transfer_data"
     USERS_STATUS="users/{}/currencies"
     USERS_DATA="users/{}/currencies/{}/enable_data"
 
@@ -33,6 +39,13 @@ class Klient:
     
     
     def _request_api_get(self,endpoint,params={}):
+        """Used for HTML get requests.
+        Arguments:
+            endpoint {string}: The API endpoint
+            params {dict}: URL Parameters
+        Returns:
+            HTML get request.
+        """
         url= "{}/{}/".format(self.baseurl,endpoint)
         # if arg != "":
         #     url=url.format("{}/".format(args) )
@@ -45,8 +58,12 @@ class Klient:
 
         
     def get_id(self,symbol=""):
-        """You can also use the name
+        """Returns the id associated with the symbol e.i. "ETH" or "Ethereum".
+        Arguments:
+            symbol {string}: The currencies symbol. Example: "ETH" or could also use "Ethereum".
 
+        Returns:
+            id {string}: The Kyber Network id for that symbol.
         """
         out=self._request_api_get( endpoint=self.CURRENCIES).json()["data"]
         for curr in out:
@@ -54,6 +71,12 @@ class Klient:
                 return curr["id"]
 
     def get_identity(self,id_num):
+        """Returns the symbol e.i. "ETH" or "Ethereum" associated with a Kyber Network id.
+        Arguments:
+            id_num {string}: The Kyber Network id.
+        Returns:
+            name, symbol {string}:  Example: "ETH" and "Ethereum"
+        """
         out=self._request_api_get( endpoint=self.CURRENCIES).json()["data"]
         for curr in out:
             if curr["id"]==id_num:
@@ -63,7 +86,7 @@ class Klient:
 
 
     def ping(self):
-        """Test RESTful API connectivity. Reponse to the base url is 404 rn.
+        """Test RESTful API connectivity. Reponse to the base url is 404.
         """
         out=requests.get("{}/currencies".format(self.baseurl)).ok
         if out is True:
@@ -71,7 +94,29 @@ class Klient:
         else:
             print("Failed.")
 
-            
+
+    def buy_rate(self,symbol,qty,only_official_reserve=False):
+        """Returns the latest BUY conversion rate in ETH. For example, 
+        if you want to know how much ETH do you need to buy 1 DAI, 
+        you can use this function.
+
+        Parameters: [id, qty, only_official_reserve]
+
+        Arguments:
+            id {string}: The id represents the token you want to sell using ETH.
+            qty {float}: A floating point number which will be rounded off to the decimals of the asset specified. 
+                        The quantity is the amount of units of the asset you want to sell.
+            only_official_reserve {boolean}: If no value is specified, 
+                                            it will default to true. If true, the API will only return tokens 
+                                            from the permissioned reserves. 
+                                            If false, the API will return both permissioned reserve tokens and 
+                                            also tokens that have been deployed permissionlessly.
+        Returns:
+            json response {dict}
+        """
+        params={"id":self.get_id(symbol=symbol),"qty":qty,"only_official_reserve":only_official_reserve}
+        return self._request_api_get(self.BUY_RATE,params=params).json()
+
     def currencies(self,**kwargs):
         """Returns a list of all possible tokens available for trade.
 
@@ -85,24 +130,126 @@ class Klient:
         """
         return self._request_api_get( endpoint=self.CURRENCIES, params=kwargs["params"]).json()["data"]
 
+    def change_24hr(self,only_official_reserve=True):
+        """Returns token to ETH and USD rates and percentage changes against the past day
+            Arguments:
+                Returns {boolean}: If no value is specified, it will default to true. If true, the API will only return tokens from the permissioned reserves. 
+                If false, the API will return both permissioned reserve tokens and also tokens that have been deployed permissionlessly.
+        
+            Returns:
+                json response {dict}
+        """
+        params={"only_official_reserve":only_official_reserve}
+        return self._request_api_get(self.CHANGE_24H,params).json()["data"]
 
-    def buy_rate(self,symbol,qty,only_official_reserve=False):
-        """Returns the latest BUY conversion rate in ETH. For example, 
-            if you want to know how much ETH do you need to buy 1 DAI, 
-            you can use this function.
+    def currencies(self,**kwargs):
+        """Returns a list of all possible tokens available for trade.
 
-        Parameters: id, qty, only_official_reserve
+        Parameters: [only_official_reserve, include_delisted, page]
 
         Returns:
+            json response {dict}
+        """
+        params={}
+        if "params" in kwargs:
+            params=kwargs["params"]
 
+        return self._request_api_get( endpoint=self.CURRENCIES, params=params).json()["data"]
+
+    def change_24hr(self,only_official_reserve=False):
+        """ Returns token to ETH and USD rates and percentage changes against the past day"""
+        params={"only_official_reserve":only_official_reserve}
+        return self._request_api_get(self.CHANGE_24H,params=params).json()["data"]
+
+
+    def market(self,**kwargs):
+        """General market json resonse. Its generally better to use the market class."""
+
+        params={}
+        if params in kwargs:
+            params=kwargs["params"]
+        return  self._request_api_get(endpoint=self.MARKET,params=params)
+
+    def qoute_amount(self,base_wallet="",qoute_wallet="",qty=0.0,side="BUY"):
+        """Returns the amount of quote token needed to buy / received when selling qty amount of base token. 
+            This endpoint will only work for official reserves.
+
+        Arguments:
+            base_wallet {string}:The base token contract address.
+            qoute_wallet {string}: The quote token contract address.
+            qty {float}: The amount of base tokens you would like to buy / sell.
+            type {string}: BUY or SELL.
+        Returns:
+            json of response.
+        """
+
+        params={"base":base_wallet,"qoute":qoute_wallet,"qty":qty,"type":side}
+        return self._request_api_get(endpoint=self.QUOTE_AMOUNT,params=params).json()["data"]
+    
+    def gas_limit(self,source_wallet="",dest_wallet="",amount=0.0):
+        """Return the estimated Gas Limit used for a transaction based on source token amount.
+
+        Arguments:
+            source_wallet {string}: The source token contract address.
+            dest_wallet {string}: The destination token contract address.
+            amount {int}: The amount of source tokens.
+        Returns:
+            json of response.
+
+        """
+        params={"source": source_wallet, "dest": dest_wallet, "amount": amount}
+        return self._request_api_get(endpoint=self.MARKET,params=params).json()["data"]
+
+
+    def sell_rate(self,symbol,qty,only_official_reserve=False):
+        """Returns the latest SELL conversion rate in ETH. 
+            For example, if you want to know how much ETH you will get by SELLing 1 DAI, you can use this function.
+
+        Arguments:
+            id {string}: The id represents the token you want to sell using ETH.
+            qty {float}: A floating point number which will be rounded off to the decimals of the asset specified. 
+                        The quantity is the amount of units of the asset you want to sell.
+            only_official_reserve {boolean}: If no value is specified, 
+                                            it will default to true. If true, the API will only return tokens from the permissioned reserves. 
+                                            If false, the API will return both permissioned reserve tokens and also tokens that have been deployed permissionlessly.
+        Returns:
+            json response {dict}
         """
         params={"id":self.get_id(symbol=symbol),"qty":qty,"only_official_reserve":only_official_reserve}
-        return self._request_api_get(self.BUY_RATE,params=params).json()
-        
+        return self._request_api_get(self.SELL_RATE,params=params).json()["data"]
 
-    def users_status(self,wallet="",enabled=True,**kwargs):
+    def trade_data(self,params={}):
+        """Returns the transaction payload for the user to sign and broadcast in order to
+            trade or convert an asset pair from token A to token B.
+
+        Arguments:
+            params {dict}: Because the large amount of parameters needed a single dict is recommended.
+        Returns:
+            json of response.
+
         """
+        return self._request_api_get(self.TRADE_DATA,params=params).json()["data"]
 
+    def trade_data(self,params={}):
+        """Returns the transaction payload for the user to sign and broadcast in order to transfer an asset to a recipient.
+
+        Arguments:
+            params {dict}: Because the large amount of parameters needed a single dict is recommended.
+        Returns:
+            json of response.
+
+        """
+        return self._request_api_get(self.TRANSFER_DATA,params=params).json()["data"]
+
+    
+    def users_status(self,wallet="",enabled=True,**kwargs):
+        """Returns a list of token enabled statuses of an Ethereum wallet. 
+            It indicates if the wallet can sell a token or not. 
+            If not, how many transactions he has to do in order to enable it.
+        Arguments:
+            wallet {str}: Wallet address.
+        Returns:
+            json of response.
         """
         params={}
         if "params" in kwargs:
@@ -121,29 +268,57 @@ class Klient:
                     seq.append(row)
             return seq
 
-    def change_24hr(self):
-        """
-        """
-        return self._request_api_get(self.CHANGE_24H).json()
+    # def users_data(self,wallet="",enabled=True,**kwargs):
+    #     """
 
+    #     """
+    #     params={}
+    #     if "params" in kwargs:
+    #         params=kwargs["params"]
+
+    #     endpoint=self.USERS_STATUS
+    #     endpoint=endpoint.format(wallet)
+    #     print(endpoint)
+    #     data=self._request_api_get( endpoint=endpoint,params=params).json()["data"]
+    #     if enabled is False:
+    #         return data
+    #     seq=[]
+    #     if enabled is True:
+    #         for row in data:
+    #             if row["enabled"] is True:
+    #                 seq.append(row)
+    #         return seq
+
+
+class Market(Klient):
+    """Class devoted to displaying responses to the market_data function 
+        of the Klient class in a more effiecent manner.
+    """
+    def __init__(self):
+        super().__init__()
+        self.data=self._request_api_get( endpoint=self.MARKET).json()["data"]
+        self.kyberdocs="https://developer.kyber.network/docs/"
+
+    
+    def per_token(self, symbol=""):
+        for row in self.data:
+            if row["quote_symbol"]==symbol.upper():
+                return row
+    
+    def per_pair(self,pair=""):
+        for row in self.data:
+            if row["pair"]==pair.upper():
+                return row
     
 
 
 
 if __name__ == "__main__":
 
-    kyber=Klient()
-    kyber.ping()
+    k=Klient()
+    print(k.baseurl)
+    k.ping()
 
-
-    #print("here")
-    #print(requests.get("https://api.kyber.network/buy_rate",params={"id": "0xdd974D5C2e2928deA5F71b9825b8b646686BD200" ,"qty":300}).json() )
-    #print( kyber.buy_rate(symbol="KNC",qty=300) )
-
-    mew="0xFE9b25750A078fe4B5BbbDFD7ce362Ed80Dc1272"
-    cb="0x29160778AA6cC46dFa6fBa250Ce23D6456818ff7"
+    m=Market()
+    print( m.per_token("jim") )
     
-    # print(kyber.users_status(wallet=cb))
-
-    # ID = kyber.users_status(wallet=cb)[0]["id"]
-    # print( kyber.get_identity(ID) )
