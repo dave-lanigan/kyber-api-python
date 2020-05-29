@@ -1,6 +1,5 @@
 #AMDG
-import requests, os
-import pandas
+import requests
 
 class Klient:
     """
