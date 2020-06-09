@@ -370,10 +370,3 @@ class Market(Klient):
     
 
 
-
-if __name__ == "__main__":
-
-    k=Klient()
-    print( k.change_24hr(pair="ETH_MANA") )
-
-
