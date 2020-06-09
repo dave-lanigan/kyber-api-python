@@ -24,7 +24,7 @@ class Klient:
     TRADE_DATA="trade_data"
     TRANSFER_DATA="transfer_data"
     USERS_STATUS="users/{}/currencies"
-    USERS_DATA="users/{}/currencies/{}/enable_data"
+    USERS_ENABLE="users/{}/currencies/{}/enable_data"
 
 
     def __init__(self):
@@ -45,18 +45,29 @@ class Klient:
         Returns:
             HTML get request.
         """
-        url= "{}/{}/".format(self.baseurl,endpoint)
+        url= "{}/{}".format(self.baseurl,endpoint)
         # if arg != "":
         #     url=url.format("{}/".format(args) )
         print(url)
         return requests.get(url,params)
 
 
-    # def _request_api_post(self,endpoint,param={},arg=""):
-    #     pass
+    def _request_api_post(self,endpoint,params={}):
+        """Used for HTML get requests.
+        Arguments:
+            endpoint {string}: The API endpoint
+            params {dict}: URL Parameters
+        Returns:
+            HTML get request.
+        """
+        url= "{}/{}".format(self.baseurl,endpoint)
+        # if arg != "":
+        #     url=url.format("{}/".format(args) )
+        print(url)
+        return requests.post(url,params)
 
         
-    def get_id(self,symbol=""):
+    def get_id(self,symbol):
         """Returns the id associated with the symbol e.i. "ETH" or "Ethereum".
         Arguments:
             symbol {string}: The currencies symbol. Example: "ETH" or could also use "Ethereum".
@@ -114,7 +125,7 @@ class Klient:
             json response {dict}
         """
         params={"id":self.get_id(symbol=symbol),"qty":qty,"only_official_reserve":only_official_reserve}
-        return self._request_api_get(self.BUY_RATE,params=params).json()
+        return self._request_api_get(self.BUY_RATE,params=params).json()["data"]
 
     def change_24hr(self,pair="",only_official_reserve=True):
         """Returns token to ETH and USD rates and percentage changes against the past day
@@ -199,31 +210,88 @@ class Klient:
         params={"id":self.get_id(symbol=symbol),"qty":qty,"only_official_reserve":only_official_reserve}
         return self._request_api_get(self.SELL_RATE,params=params).json()["data"]
 
-    def trade_data(self,params={}):
+    def trade_data(self,user_address,pair,src_qty,min_dst_qty,gas_price="low",only_official_reserve=False,**kwargs):
         """Returns the transaction payload for the user to sign and broadcast in order to
             trade or convert an asset pair from token A to token B.
+            
+        Optional parameters: {wallet_id,nonce,only_official_reserve}
 
         Arguments:
-            params {dict}: Because the large amount of parameters needed a single dict is recommended.
+            user_address {string}:
+            pair {string}: pair that you want to trade in this format -> "BTC_ETH" or "btc_eth", where               the first token is the source and the second token is the destination.
+            src_qty {float}: The 
+            min_dst_qty {float}:
+            gas_price {string}: One of the following 3: low, medium, high. Priority will be set according to the level defined.
+            
         Returns:
             json of response.
 
         """
-        return self._request_api_get(self.TRADE_DATA,params=params).json()["data"]
+        
+        pair=pair.split("_")
+        src_symbol,dst_symbol=pair[0],pair[1]
+        
 
-    def trade_data(self,params={}):
-        """Returns the transaction payload for the user to sign and broadcast in order to transfer an asset to a recipient.
-
-        Arguments:
-            params {dict}: Because the large amount of parameters needed a single dict is recommended.
-        Returns:
-            json of response.
-
-        """
-        return self._request_api_get(self.TRANSFER_DATA,params=params).json()["data"]
-
+        payload={"user_address": user_address,
+                "src_id": self.get_id(symbol=src_symbol),
+                "dst_id":self.get_id(symbol=dst_symbol),
+                "src_qty":src_qty,
+                "min_dst_qty": min_dst_qty,
+                "gas_price":gas_price,
+                "only_official_reserve":only_official_reserve,
+                }
+        
+        if "wallet_id" in kwargs:
+            payload["wallet_id"]=kwargs["wallet_id"]
+        if "nonce" in kwargs:
+            payload["nonce"]=kwargs["nonce"]
+            
+        
+        return self._request_api_get(self.TRADE_DATA,params=payload).json()
     
-    def users_status(self,wallet="",enabled=True,**kwargs):
+    def transfer_data(self,from_address,to_address,pair,src_qty,min_dst_qty,gas_price="low",only_official_reserve=False,**kwargs):
+        """Returns the transaction payload for the user to sign and broadcast in order to
+            trade or convert an asset pair from token A to token B.
+            
+        Optional parameters: {wallet_id,nonce,only_official_reserve}
+
+        Arguments:
+            to_address {string}: The Ethereum address of the sender.
+            from_address {string}: The Ethereum address of the receiver.
+            pair {string}: pair that you want to trade in this format -> "BTC_ETH" or "btc_eth", where               the first token is the source and the second token is the destination.
+            src_qty {float}: The 
+            min_dst_qty {float}:
+            gas_price {string}: One of the following 3: low, medium, high. Priority will be set according to the level defined.
+            
+        Returns:
+            json of response.
+
+        """
+        
+        pair=pair.split("_")
+        src_symbol,dst_symbol=pair[0],pair[1]
+        
+
+        payload={"from": from_address,
+                 "to": to_address,
+                 "src_id": self.get_id(symbol=src_symbol),
+                 "dst_id":self.get_id(symbol=dst_symbol),
+                 "src_qty":src_qty,
+                 "min_dst_qty": min_dst_qty,
+                 "gas_price":gas_price,
+                 "only_official_reserve":only_official_reserve,
+                }
+        
+        if "wallet_id" in kwargs:
+            payload["wallet_id"]=kwargs["wallet_id"]
+        if "nonce" in kwargs:
+            payload["nonce"]=kwargs["nonce"]
+            
+        
+        return self._request_api_get(self.TRADE_DATA,params=payload).json()
+    
+    
+    def users_status(self,wallet,enabled=True,**kwargs):
         """Returns a list of token enabled statuses of an Ethereum wallet. 
             It indicates if the wallet can sell a token or not. 
             If not, how many transactions he has to do in order to enable it.
@@ -249,26 +317,35 @@ class Klient:
                     seq.append(row)
             return seq
 
-    # def users_data(self,wallet="",enabled=True,**kwargs):
-    #     """
+    
+    def users_enable(self,wallet,symbol,gas_price="low",only_official_reserve=False,**kwargs):
+        """
+        Returns all needed information for a user to sign and do a transaction, and to enable a token to be able to sell
+        
+        Additional Parameters {nonce}
+        
+        Arguments:
+            wallet {string}: Wallet address.
+            symbol {string}: Symbol of the destination asset. Ex. "ETH"
+            gas_price {string}: low, medium or high
+        Returns:
+            json of response.
 
-    #     """
-    #     params={}
-    #     if "params" in kwargs:
-    #         params=kwargs["params"]
+        """
 
-    #     endpoint=self.USERS_STATUS
-    #     endpoint=endpoint.format(wallet)
-    #     print(endpoint)
-    #     data=self._request_api_get( endpoint=endpoint,params=params).json()["data"]
-    #     if enabled is False:
-    #         return data
-    #     seq=[]
-    #     if enabled is True:
-    #         for row in data:
-    #             if row["enabled"] is True:
-    #                 seq.append(row)
-    #         return seq
+        endpoint=self.USERS_ENABLE
+        endpoint=endpoint.format(wallet,self.get_id(symbol))
+        
+        payload={"gas_price":gas_price,"only_official_reserve":only_official_reserve}
+        if "nonce" in kwargs:
+            payload["nonce"]=kwargs["nonce"]
+        
+        return self._request_api_get( endpoint=endpoint,params=payload).json()["data"]
+    
+    def exchange_rate(self,pair):
+        pass
+        
+        
 
 
 class Market(Klient):
