@@ -51,21 +51,6 @@ class Klient:
         print(url)
         return requests.get(url,params)
 
-
-    def _request_api_post(self,endpoint,params={}):
-        """Used for HTML get requests.
-        Arguments:
-            endpoint {string}: The API endpoint
-            params {dict}: URL Parameters
-        Returns:
-            HTML get request.
-        """
-        url= "{}/{}".format(self.baseurl,endpoint)
-        # if arg != "":
-        #     url=url.format("{}/".format(args) )
-        print(url)
-        return requests.post(url,params)
-
         
     def get_id(self,symbol):
         """Returns the id associated with the symbol e.i. "ETH" or "Ethereum".
@@ -125,7 +110,7 @@ class Klient:
             json response {dict}
         """
         params={"id":self.get_id(symbol=symbol),"qty":qty,"only_official_reserve":only_official_reserve}
-        return self._request_api_get(self.BUY_RATE,params=params).json()["data"]
+        return self._request_api_get(self.BUY_RATE,params=params).json()
 
     def change_24hr(self,pair="",only_official_reserve=True):
         """Returns token to ETH and USD rates and percentage changes against the past day
@@ -156,7 +141,7 @@ class Klient:
         if "params" in kwargs:
             params=kwargs["params"]
 
-        return self._request_api_get( endpoint=self.CURRENCIES, params=params).json()["data"]
+        return self._request_api_get( endpoint=self.CURRENCIES, params=params).json()
 
     def market(self,**kwargs):
         """General market json resonse. Its generally better to use the market class."""
@@ -176,7 +161,7 @@ class Klient:
         """
 
         params={"base":base_wallet,"qoute":qoute_wallet,"qty":qty,"type":side}
-        return self._request_api_get(endpoint=self.QUOTE_AMOUNT,params=params).json()["data"]
+        return self._request_api_get(endpoint=self.QUOTE_AMOUNT,params=params).json()
     
     def gas_limit(self,source_wallet="",dest_wallet="",amount=0.0):
         """Return the estimated Gas Limit used for a transaction based on source token amount.
@@ -190,7 +175,7 @@ class Klient:
 
         """
         params={"source": source_wallet, "dest": dest_wallet, "amount": amount}
-        return self._request_api_get(endpoint=self.MARKET,params=params).json()["data"]
+        return self._request_api_get(endpoint=self.MARKET,params=params).json()
 
 
     def sell_rate(self,symbol,qty,only_official_reserve=False):
@@ -208,7 +193,7 @@ class Klient:
             json response {dict}
         """
         params={"id":self.get_id(symbol=symbol),"qty":qty,"only_official_reserve":only_official_reserve}
-        return self._request_api_get(self.SELL_RATE,params=params).json()["data"]
+        return self._request_api_get(self.SELL_RATE,params=params).json()
 
     def trade_data(self,user_address,pair,src_qty,min_dst_qty,gas_price="low",only_official_reserve=False,**kwargs):
         """Returns the transaction payload for the user to sign and broadcast in order to
@@ -340,11 +325,17 @@ class Klient:
         if "nonce" in kwargs:
             payload["nonce"]=kwargs["nonce"]
         
-        return self._request_api_get( endpoint=endpoint,params=payload).json()["data"]
+        return self._request_api_get( endpoint=endpoint,params=payload).json()
     
-    def exchange_rate(self,pair):
-        pass
+    def exchange_rate(self,pair,qty):
         
+        pair=pair.split("_")
+        src_symbol,dst_symbol=pair[0],pair[1]
+        
+        sr=self.sell_rate(src_symbol,qty)[0]["dst_qty"][0]
+        br=self.buy_rate(dst_symbol,qty)[0]["src_qty"][0]
+        
+        return {"exchange_rate": sr/br, "total": qty*(sr/br)}
         
 
 
